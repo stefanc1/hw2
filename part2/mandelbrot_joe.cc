@@ -78,16 +78,67 @@ main (int argc, char* argv[])
 		}
 		y += it;
 	}
-
+	int *leftOverBuffer = NULL; 
+	int leftOverSize;
 	if (rank == 0) {
-		int leftOver = height - (N*np);
-		int 
+		leftOverSize = height - (N*np);
+		leftOverBuffer = malloc(sizeof(int)*leftOverSize);
 
-		int receiveBuffer = (int *)malloc(np * blockSize 8 sizeof(int));
+		y = minY + N*np*it;
+		for (int i = 0; i < leftOverSize; ++i) {
+			x = minX;
+			for (int j = 0; j < width; ++j) {
+				leftOverBuffer[(i*width) + j] = mandelbrot(x,y);
+				x += jt;
+			}
+			y += it;
+		}
 	}
 
 
+	MPI_Barrier(MPI_COMM_WORLD);
 
+	/* GATHERING DATA FROM ALL PROCESSES */
+	int *receiveBuffer = NULL;
+	int *receiveLeftOverBuffer = NULL;
+	if (rank == 0) {
+		receiveLeftOverBuffer = malloc(sizeof(int)*np*blockSize);
+		receiveLeftOverBuffer = malloc(sizeof(int)*leftOverSize);
+	}
+
+	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Gather(leftOverBuffer, leftOverSize, MPI_INT, receiveLeftOverBuffer, MPI_INT, 0, MPI_COMM_WORLD);
+	
+	
+	
+
+	
+	if (rank == 0) {
+
+		//Generate Image
+		gil::rgb8_image_t img(height, width);
+		auto img_view = gil::view(img);
+
+
+		for (int k = 0; k < (N*np); ++k) {
+			for (int p = 0; p < width; ++p) {
+				img_view(p, k) = render(receiveBuffer[ (k * width) + p] / 512.0);
+			}
+		}
+
+		for (int k = 0; k < leftOverSize; ++k) {
+			for (int p = 0; p < width; ++p) {
+				img_view(p, k + (N*np) ) = render(receiveLeftOverBuffer[ (k * width) + p] / 512.0);
+			}
+		}
+
+		gil::png_write_view("mandelbrot-joe.png", const_view(img));
+
+	}
+	
+	MPI_Finalize();
+
+	return 0;
 
 
 }
