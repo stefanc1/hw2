@@ -82,7 +82,7 @@ main (int argc, char* argv[])
 	int leftOverSize;
 	if (rank == 0) {
 		leftOverSize = height - (N*np);
-		leftOverBuffer = malloc(sizeof(int)*leftOverSize);
+		leftOverBuffer = (int *)malloc(sizeof(int)*leftOverSize);
 
 		y = minY + N*np*it;
 		for (int i = 0; i < leftOverSize; ++i) {
@@ -100,18 +100,15 @@ main (int argc, char* argv[])
 
 	/* GATHERING DATA FROM ALL PROCESSES */
 	int *receiveBuffer = NULL;
-	int *receiveLeftOverBuffer = NULL;
+	// int *receiveLeftOverBuffer = NULL;
 	if (rank == 0) {
-		receiveLeftOverBuffer = malloc(sizeof(int)*np*blockSize);
-		receiveLeftOverBuffer = malloc(sizeof(int)*leftOverSize);
+		receiveBuffer = (int *)malloc(sizeof(int)*np*blockSize);
+		// receiveLeftOverBuffer = (int *)malloc(sizeof(int)*leftOverSize);
 	}
 
-	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Gather(leftOverBuffer, leftOverSize, MPI_INT, receiveLeftOverBuffer, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer, blockSize, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Gather(leftOverBuffer, leftOverSize, MPI_INT, receiveLeftOverBuffer, MPI_INT, 0, MPI_COMM_WORLD);
 	
-	
-	
-
 	
 	if (rank == 0) {
 
@@ -128,7 +125,7 @@ main (int argc, char* argv[])
 
 		for (int k = 0; k < leftOverSize; ++k) {
 			for (int p = 0; p < width; ++p) {
-				img_view(p, k + (N*np) ) = render(receiveLeftOverBuffer[ (k * width) + p] / 512.0);
+				img_view(p, k + (N*np) ) = render(leftOverBuffer[ (k * width) + p] / 512.0);
 			}
 		}
 
