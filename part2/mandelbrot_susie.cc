@@ -83,39 +83,44 @@ main (int argc, char* argv[])
 
 	MPI_Barrier (MPI_COMM_WORLD);
 
+	
+	int *receiveBuffer = NULL;
 	//Master Process creates the receive buffer 
 	if (rank == 0) {
-		int *receiveBuffer;
-		receiveBuffer = (int *)malloc(np * blockSize * sizeof(int));
+		
+		receiveBuffer = (int *)malloc(blockSize * np *sizeof(int));
 	}
 
-	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer, MPI_INT, 0, MPI_COMM_WORLD);
-	
-	//Time Stop
-	MPI_Barrier(MPI_COMM_WORLD);
-	t_elapsed = MPI_Wtime();
+	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer,blockSize, MPI_INT, 0, MPI_COMM_WORLD);
+	if(rank == 0){
 
-	MPI_Finalize();
+		//Time Stop
+		MPI_Barrier(MPI_COMM_WORLD);
+		t_elapsed = MPI_Wtime();
 
-	//Generate Image
-	gil::rgb8_image_t img(height, width);
-	auto img_view = gil::view(img);
+		
 
-	int processStart = 0; //index of processors' first data
-	int rowGo =0; //index of the row of the processors' data
+		//Generate Image
+		gil::rgb8_image_t img(height, width);
+		auto img_view = gil::view(img);
 
-	for(int i = 0; i < height; ++i){
-		processStart = ( i / np) * blockSize; /*find the starting point of the processor*/ 
-		for(int j = 0; j < width; ++j){
-			img_view(j, i) = render(receiveBuffer[processStart + (rowGo * nlockSize) + p]/512.0); //loop through all the rows that's in the same processor
+		int processStart = 0; //index of processors' first data
+		int rowGo =0; //index of the row of the processors' data
+
+		for(int i = 0; i < height; ++i){
+			processStart = ( i / np) * blockSize; /*find the starting point of the processor*/ 
+			for(int j = 0; j < width; ++j){
+				img_view(j, i) = render(receiveBuffer[processStart + (rowGo * blockSize) + j]/512.0); //loop through all the rows that's in the same processor
+			}
+			rowGo = i / np; 
 		}
-		rowGo = i / np; 
+
+		t_elapsed -= t_start;
+		printf("time requires to calculate the data is %f", t_elapsed);
+		gil::png_write_view("mandelbrot.png", const_view(img));
 	}
-
-
-	t_elapsed -= t_start;
-	printf("time requires to calculate the data is %f", t_elapsed);
-	gil::png_write_view("mandelbrot.png", const_view(img));
+	MPI_Finalize();
+	return 0;
 }
 
 /* eof */

@@ -64,6 +64,7 @@ main (int argc, char* argv[])
 
 	if(rank == 0){
 		t_start = MPI_Wtime();
+		printf("Number of MPI processes: %d\r\n", np);
 	}
 	int N = height / np;
 	int blockSize = N * width;
@@ -82,7 +83,7 @@ main (int argc, char* argv[])
 	int leftOverSize;
 	if (rank == 0) {
 		leftOverSize = height - (N*np);
-		leftOverBuffer = (int *)malloc(sizeof(int)*leftOverSize);
+		leftOverBuffer = (int *)malloc(sizeof(int)*leftOverSize*width);
 
 		y = minY + N*np*it;
 		for (int i = 0; i < leftOverSize; ++i) {
@@ -98,17 +99,15 @@ main (int argc, char* argv[])
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	/* GATHERING DATA FROM ALL PROCESSES */
 	int *receiveBuffer = NULL;
-	// int *receiveLeftOverBuffer = NULL;
-	if (rank == 0) {
+	int totalSize = np * blockSize;
+
+	if (rank == 0) 
+	{		
 		receiveBuffer = (int *)malloc(sizeof(int)*np*blockSize);
-		// receiveLeftOverBuffer = (int *)malloc(sizeof(int)*leftOverSize);
 	}
 
 	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer, blockSize, MPI_INT, 0, MPI_COMM_WORLD);
-	// MPI_Gather(leftOverBuffer, leftOverSize, MPI_INT, receiveLeftOverBuffer, MPI_INT, 0, MPI_COMM_WORLD);
-	
 	
 	if (rank == 0) {
 
@@ -129,6 +128,8 @@ main (int argc, char* argv[])
 			}
 		}
 
+		t_elapsed = MPI_Wtime () - t_start; // compute the overall time taken
+	    printf("Total time: %f\r\n", t_elapsed);
 		gil::png_write_view("mandelbrot-joe.png", const_view(img));
 
 	}
