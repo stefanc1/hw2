@@ -52,11 +52,13 @@ main (int argc, char* argv[])
 	double jt = (maxX - minX)/width;
 	double x, y;
 
-	int rank, np;
-	MPI_Status status;
+    int rank, np;
 
 	//MPI Start
 	MPI_Init (&argc, &argv);
+    
+    
+    
 	MPI_Comm_rank (MPI_COMM_WORLD, &rank);	/* Get process id */
 	MPI_Comm_size (MPI_COMM_WORLD, &np);	/*Get number of processes*/
 	MPI_Barrier (MPI_COMM_WORLD);
