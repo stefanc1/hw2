@@ -153,7 +153,7 @@ main (int argc, char* argv[])
 			}
 
 			t_elapsed = MPI_Wtime () - t_start; // compute the overall time taken
-		    printf("Total time: %f\r\n", t_elapsed);
+			printf("Total time: %f\r\n", t_elapsed);
 			gil::png_write_view("mandelbrot-ms.png", const_view(img));
 		}// end master
 
