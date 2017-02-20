@@ -52,18 +52,18 @@ main (int argc, char* argv[])
 	double jt = (maxX - minX)/width;
 	double x, y;
 
-    int rank, np;
+    
 
 	//MPI Start
 	MPI_Init (&argc, &argv);
-    
+    int rank, np;
     
     
 	MPI_Comm_rank (MPI_COMM_WORLD, &rank);	/* Get process id */
 	MPI_Comm_size (MPI_COMM_WORLD, &np);	/*Get number of processes*/
 	MPI_Barrier (MPI_COMM_WORLD);
 	if(rank == 0){
-		
+		printf("Number of process: %d\r\n", np);	
 		t_start = MPI_Wtime();
 	}
 	int maxDataPerRow = height / np + 1;
@@ -72,8 +72,22 @@ main (int argc, char* argv[])
 
 
 	//row = rank, rank + 1P, rank + 2P
-	y = minY + it * rank;
-	int maxRowsIterations = (height-rank)/np;
+	y = minY + (it * rank);
+//    int row = 0; // starting row
+//    for (int i = rank; i < height; i += np) { // this will control computing only for valid rows
+//        x = minX;
+//        for (int j = 0; j < width; ++j) {
+//            sendBuffer[ (row * width) + j] = mandelbrot(x, y);
+//            x += jt;
+//        }
+//        y += (it*np);
+//        row += 1; // increment the row number for the sendbuffer
+//    }
+    int maxRowsIterations = height / np;
+    int extraRun = height % np;
+    if(rank < extraRun && extraRun != 0){
+        maxRowsIterations += 1;
+    }
 	for (int i = 0; i < maxRowsIterations; ++i) {
 		x = minX;
 		for (int j = 0; j < width; ++j) {
@@ -83,7 +97,7 @@ main (int argc, char* argv[])
 		y += (it*np);
 	}
 
-	MPI_Barrier (MPI_COMM_WORLD);
+	
 
 	
 	int *receiveBuffer = NULL;
@@ -92,12 +106,12 @@ main (int argc, char* argv[])
 		
 		receiveBuffer = (int *)malloc(blockSize * np * sizeof(int));
 	}
-
-	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer,blockSize * np, MPI_INT, 0, MPI_COMM_WORLD);
-	if(rank == 0){
+    MPI_Barrier (MPI_COMM_WORLD);
+	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer,blockSize, MPI_INT, 0, MPI_COMM_WORLD);
+	
+    if(rank == 0){
 
 		//Time Stop
-		MPI_Barrier(MPI_COMM_WORLD);
 		t_elapsed = MPI_Wtime();
 
 		
@@ -112,16 +126,17 @@ main (int argc, char* argv[])
 		for(int i = 0; i < height; ++i){
 			processStart = ( i % np) * blockSize; /*find the starting point of the processor*/
 			for(int j = 0; j < width; ++j){
-				img_view(j, i) = render(receiveBuffer[processStart + (rowGo * blockSize) + j]/512.0); //loop through all the rows that's in the same processor
+				img_view(j, i) = render(receiveBuffer[processStart + (rowGo * width) + j]/512.0); //loop through all the rows that's in the same processor
 			}
 			rowGo = i / np; 
 		}
 
 		t_elapsed -= t_start;
 		printf("time requires to calculate the data is %f", t_elapsed);
-		gil::png_write_view("mandelbrot.png", const_view(img));
+		gil::png_write_view("mandelbrot-susie.png", const_view(img));
 	}
 	MPI_Finalize();
+    
 	return 0;
 }
 
