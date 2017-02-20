@@ -52,13 +52,12 @@ main (int argc, char* argv[])
 	double jt = (maxX - minX)/width;
 	double x, y;
 
-    
+
 
 	//MPI Start
 	MPI_Init (&argc, &argv);
-    int rank, np;
-    
-    
+	int rank, np;
+
 	MPI_Comm_rank (MPI_COMM_WORLD, &rank);	/* Get process id */
 	MPI_Comm_size (MPI_COMM_WORLD, &np);	/*Get number of processes*/
 	MPI_Barrier (MPI_COMM_WORLD);
@@ -74,14 +73,14 @@ main (int argc, char* argv[])
 
 
 	y = minY + (it * rank);
-    
-    //calculate how many rows a processor needs to go through
-    int maxRowsIterations = height / np;
-    //the left over rows need to be distribute into processes
-    int extraRun = height % np;
-    if(rank < extraRun && extraRun != 0){
-        maxRowsIterations += 1;
-    }
+
+	//calculate how many rows a processor needs to go through
+	int maxRowsIterations = height / np;
+	//the left over rows need to be distribute into processes
+	int extraRun = height % np;
+	if(rank < extraRun && extraRun != 0){
+		maxRowsIterations += 1;
+	}
 	for (int i = 0; i < maxRowsIterations; ++i) {
 		x = minX;
 		for (int j = 0; j < width; ++j) {
@@ -97,11 +96,11 @@ main (int argc, char* argv[])
 		
 		receiveBuffer = (int *)malloc(blockSize * np * sizeof(int));
 	}
-    MPI_Barrier (MPI_COMM_WORLD);
-    //Gather all datas from every processes
+	MPI_Barrier (MPI_COMM_WORLD);
+	//Gather all datas from every processes
 	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer,blockSize, MPI_INT, 0, MPI_COMM_WORLD);
 	
-    if(rank == 0){
+	if(rank == 0){
 		//Generate Image
 		gil::rgb8_image_t img(height, width);
 		auto img_view = gil::view(img);
@@ -116,13 +115,14 @@ main (int argc, char* argv[])
 			}
 			rowGo = i / np; 
 		}
-        //Time Stop and calculate total time
-        t_elapsed = MPI_Wtime() - t_start;
+		//Time Stop and calculate total time
+		t_elapsed = MPI_Wtime() - t_start;
 		printf("time requires to calculate the data is %f", t_elapsed);
 		gil::png_write_view("mandelbrot-susie.png", const_view(img));
 	}
+
+	
 	MPI_Finalize();
-    
 	return 0;
 }
 
