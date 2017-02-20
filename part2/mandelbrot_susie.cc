@@ -66,24 +66,18 @@ main (int argc, char* argv[])
 		printf("Number of process: %d\r\n", np);	
 		t_start = MPI_Wtime();
 	}
-	int maxDataPerRow = height / np + 1;
-	int blockSize = maxDataPerRow * width;
+
+	int maxDataPerRow = height / np + 1;    //data of each row
+	int blockSize = maxDataPerRow * width;  //the size of block calculated by each process
 	int sendBuffer[blockSize];
 
 
-	//row = rank, rank + 1P, rank + 2P
+
 	y = minY + (it * rank);
-//    int row = 0; // starting row
-//    for (int i = rank; i < height; i += np) { // this will control computing only for valid rows
-//        x = minX;
-//        for (int j = 0; j < width; ++j) {
-//            sendBuffer[ (row * width) + j] = mandelbrot(x, y);
-//            x += jt;
-//        }
-//        y += (it*np);
-//        row += 1; // increment the row number for the sendbuffer
-//    }
+    
+    //calculate how many rows a processor needs to go through
     int maxRowsIterations = height / np;
+    //the left over rows need to be distribute into processes
     int extraRun = height % np;
     if(rank < extraRun && extraRun != 0){
         maxRowsIterations += 1;
@@ -97,9 +91,6 @@ main (int argc, char* argv[])
 		y += (it*np);
 	}
 
-	
-
-	
 	int *receiveBuffer = NULL;
 	//Master Process creates the receive buffer 
 	if (rank == 0) {
@@ -107,15 +98,10 @@ main (int argc, char* argv[])
 		receiveBuffer = (int *)malloc(blockSize * np * sizeof(int));
 	}
     MPI_Barrier (MPI_COMM_WORLD);
+    //Gather all datas from every processes
 	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer,blockSize, MPI_INT, 0, MPI_COMM_WORLD);
 	
     if(rank == 0){
-
-		//Time Stop
-		t_elapsed = MPI_Wtime();
-
-		
-
 		//Generate Image
 		gil::rgb8_image_t img(height, width);
 		auto img_view = gil::view(img);
@@ -130,8 +116,8 @@ main (int argc, char* argv[])
 			}
 			rowGo = i / np; 
 		}
-
-		t_elapsed -= t_start;
+        //Time Stop and calculate total time
+        t_elapsed = MPI_Wtime() - t_start;
 		printf("time requires to calculate the data is %f", t_elapsed);
 		gil::png_write_view("mandelbrot-susie.png", const_view(img));
 	}

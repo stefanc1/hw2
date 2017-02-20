@@ -60,17 +60,15 @@ main (int argc, char* argv[])
 	MPI_Comm_rank (MPI_COMM_WORLD, &rank);	/* Get process id */
 	MPI_Comm_size (MPI_COMM_WORLD, &np);	/*Get number of processes*/
 
-	MPI_Barrier (MPI_COMM_WORLD);
-
 	if(rank == 0){
 		t_start = MPI_Wtime();
 		printf("Number of MPI processes: %d\r\n", np);
 	}
-	int N = height / np;
-	int blockSize = N * width;
+	int N = height / np;    //separate height into np chunks
+	int blockSize = N * width;  //the size of each node needs to process
 	int sendBuffer[blockSize];
 
-	y = minY + rank*N*it;
+	y = minY + rank*N*it;   //locate the first y of each core
 	for (int i = 0; i < N; ++i) {
 		x = minX;
 		for (int j = 0; j < width; ++j) {
@@ -79,8 +77,10 @@ main (int argc, char* argv[])
 		}
 		y += it;
 	}
-	int *leftOverBuffer = NULL; 
-	int leftOverSize;
+    
+    //create leftOverBuffer and calculate the left over values that is not calculated. The job is done in master thread
+	int *leftOverBuffer = NULL;
+    int leftOverSize;
 	if (rank == 0) {
 		leftOverSize = height - (N*np);
 		leftOverBuffer = (int *)malloc(sizeof(int)*leftOverSize*width);
@@ -100,13 +100,12 @@ main (int argc, char* argv[])
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	int *receiveBuffer = NULL;
-	int totalSize = np * blockSize;
-
+    //Master process create the receiveBuffer. the size of the buffer is enough to store every value calculated by every process,which is np * blockSize.
 	if (rank == 0) 
-	{		
+	{
 		receiveBuffer = (int *)malloc(sizeof(int)*np*blockSize);
 	}
-
+    //Gathering datas from all processes to master process
 	MPI_Gather(sendBuffer, blockSize, MPI_INT, receiveBuffer, blockSize, MPI_INT, 0, MPI_COMM_WORLD);
 	
 	if (rank == 0) {
@@ -115,13 +114,13 @@ main (int argc, char* argv[])
 		gil::rgb8_image_t img(height, width);
 		auto img_view = gil::view(img);
 
-
+        //render the image calculated by each processr
 		for (int k = 0; k < (N*np); ++k) {
 			for (int p = 0; p < width; ++p) {
 				img_view(p, k) = render(receiveBuffer[ (k * width) + p] / 512.0);
 			}
 		}
-
+        //render the leftover image
 		for (int k = 0; k < leftOverSize; ++k) {
 			for (int p = 0; p < width; ++p) {
 				img_view(p, k + (N*np) ) = render(leftOverBuffer[ (k * width) + p] / 512.0);
